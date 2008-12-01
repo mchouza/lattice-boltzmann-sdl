@@ -22,17 +22,28 @@ nx_(nx),
 ny_(ny)
 {
 	f_ = new float[nx * ny * Q];
-	shadowF_ = new float[nx * ny * Q];
-	for (int x = 0; x < (int)nx_; x++)
-		for (int y = 0; y < (int)ny_; y++)
-			for (int i = 0; i < Q; i++)
-				f_[i + Q * x + Q * nx_ * y] = loader(x, y, i);
+	buffer_ = new float[nx + 1];
+
+	for (int i = 0; i < Q; i++)
+		for (int y = 0; y < ny_; y++)
+			for (int x = 0; x < nx_; x++)
+				f_[x + nx_ * (y + ny_ * i)] = loader(x, y, i);
 }
 
 Lattice2D::~Lattice2D()
 {
 	delete[] f_;
-	delete[] shadowF_;
+	delete[] buffer_;
+}
+
+void Lattice2D::getSummedFs(float* buffer) const
+{
+	int n = nx_ * ny_;
+	for (int j = 0; j < n; j++)
+			buffer[j] = f_[j];
+	for (int i = n; i < Q * n; i += n)
+		for (int j = 0; j < n; j++)
+			buffer[j] += f_[i + j];
 }
 
 void Lattice2D::step()
@@ -41,62 +52,45 @@ void Lattice2D::step()
 	makePropagation();
 }
 
-void Lattice2D::normalize(int& x, int& y) const
-{
-	x %= nx_;
-	y %= ny_;
-	if (x < 0)
-		x += nx_;
-	if (y < 0)
-		y += ny_;
-}
-
 void Lattice2D::makeCollisions()
 {
 	// FIXME: Null collision model
 }
 
-#if 0 /* 12 FPS */
+// Old way: 19 FPS
 void Lattice2D::makePropagation()
 {
-	for (int x = 0; x < nx_; x++)
-		for (int y = 0; y < ny_; y++)
-			for (int i = 0; i < Q; i++)
-				getShadowF(x + propD[i][0], y + propD[i][1], i) =
-					getF(x, y, i);
-				
-	memcpy(f_, shadowF_, Q * nx_ * ny_ * sizeof(float));
-}
-#elif 0 /* 15 FPS */
-void Lattice2D::makePropagation()
-{
-	for (int x = 0; x < nx_; x++)
-		for (int y = 0; y < ny_; y++)
-			for (int i = 0; i < Q; i++)
-			{
-				int xp = x + propD[i][0];
-				int yp = y + propD[i][1];
-				normalize(xp, yp);
-				shadowF_[i + Q * (xp + nx_ * yp)] =
-					f_[i + Q * (x + nx_ * y)];
-			}
-			
-	memcpy(f_, shadowF_, Q * nx_ * ny_ * sizeof(float));
-}
-#else /* 19 FPS */
-void Lattice2D::makePropagation()
-{
-	int offset[sizeof(propD) / sizeof(propD[0])];
-	for (int i = 0; i < sizeof(propD) / sizeof(propD[0]); i++)
-		offset[i] = Q * (propD[i][0] + propD[i][1] * nx_);
-	for (int i = 0; i < Q * nx_ * ny_; i++)
+	int n = nx_ * ny_;
+	for (int i = 0; i < Q; i++)
 	{
-		int ip = (i + offset[i % Q]) % (Q * nx_ * ny_);
-		if (ip < 0)
-			ip += Q * nx_ * ny_;
-		shadowF_[ip] = f_[i];
+		int offset = propD[i][0] + propD[i][1] * nx_;
+		float* base = f_ + i * n;
+		
+		// Now, the segment of the data vector [n * i, n * (i + 1))
+		// needs to be rotated by 'offset' places
+		if (offset < 0)
+		{
+			// If the offset is negative, the first 'offset' values need to be
+			// saved
+			memcpy(buffer_, base, -offset * sizeof(float));
+
+			// Makes the movement
+			memmove(base, base + offset, n + offset);
+
+			// Adds the rotated section
+			memcpy(base + n + offset, buffer_, -offset * sizeof(float));
+		}
+		else
+		{
+			// If the offset is positive, the lase 'offset' values need to be
+			// saved
+			memcpy(buffer_, base + n - offset, offset * sizeof(float));
+
+			// Makes the movement
+			memmove(base + offset, base, n - offset);
+
+			// Adds the rotated section
+			memcpy(base, buffer_, offset * sizeof(float));
+		}
 	}
-			
-	memcpy(f_, shadowF_, Q * nx_ * ny_ * sizeof(float));
 }
-#endif

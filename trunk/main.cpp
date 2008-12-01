@@ -3,8 +3,15 @@
 #include <SDL.h>
 #include "lattice2d.h"
 
+namespace
+{
+	const int W = 512;
+	const int H = 512;
+	float summedFsBuffer[W * H];
+}
+
 #if 0
-double myLoader(int x, int y, int i)
+float myLoader(int x, int y, int i)
 {
 	if (i > 1)
 		return 0.0;
@@ -13,7 +20,7 @@ double myLoader(int x, int y, int i)
 	else
 		return 0.0;
 }
-#else if 1
+#elif 1
 float myLoader(int x, int y, int i)
 {
 	if (i != 2 && i != 7)
@@ -27,10 +34,11 @@ float myLoader(int x, int y, int i)
 
 void drawLattice(const Lattice2D& l, SDL_Surface* pLockedSurf)
 {
+	l.getSummedFs(summedFsBuffer);
 	for (int y = 0; y < 512; y++)
 		for (int x = 0; x < 512; x++)
 		{
-			Uint8 grayLevel = (Uint8)(l.getSumF(x, y) * 255.0);
+			Uint8 grayLevel = (Uint8)(summedFsBuffer[x + W * y] * 255.0);
 			Uint32 valueToStore = (grayLevel << 16) | (grayLevel << 8) |
 				grayLevel;
 			((Uint32*)pLockedSurf->pixels)[x + y * 512] = valueToStore;
