@@ -7,7 +7,6 @@ namespace
 {
 	const int W = 512;
 	const int H = 512;
-	float summedFsBuffer[W * H];
 }
 
 #if 0
@@ -23,7 +22,7 @@ float myLoader(int x, int y, int i)
 #elif 1
 float myLoader(int x, int y, int i)
 {
-	if (i != 2 && i != 7)
+	if (i != ((x/16) + (y/16) * 5) % 9)
 		return 0.0;
 	if ((x/16) % 2 == 0 && (y/16) % 2 == 0)
 		return 0.5;
@@ -34,14 +33,14 @@ float myLoader(int x, int y, int i)
 
 void drawLattice(const Lattice2D& l, SDL_Surface* pLockedSurf)
 {
-	l.getSummedFs(summedFsBuffer);
-	for (int y = 0; y < 512; y++)
-		for (int x = 0; x < 512; x++)
+	const float* summedFsBuffer = l.getSummedFs();
+	for (int y = 0; y < H; y++)
+		for (int x = 0; x < W; x++)
 		{
 			Uint8 grayLevel = (Uint8)(summedFsBuffer[x + W * y] * 255.0);
 			Uint32 valueToStore = (grayLevel << 16) | (grayLevel << 8) |
 				grayLevel;
-			((Uint32*)pLockedSurf->pixels)[x + y * 512] = valueToStore;
+			((Uint32*)pLockedSurf->pixels)[x + y * W] = valueToStore;
 		}
 }
 
@@ -51,7 +50,7 @@ int main(int argc, char* argv[])
 
 	SDL_Init(SDL_INIT_EVERYTHING);
 
-	SDL_Surface* pScreen = SDL_SetVideoMode(512, 512, 32, SDL_DOUBLEBUF);
+	SDL_Surface* pScreen = SDL_SetVideoMode(W, H, 32, SDL_DOUBLEBUF);
 
 	SDL_Event ev;
 	int i = 0;
