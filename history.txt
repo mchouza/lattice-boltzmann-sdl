@@ -1,0 +1,7 @@
+RELEASE HISTORY
+===============
+
+Version 0.01
+------------
+- Initial "release".
+- Still doesn't handle collisions.
