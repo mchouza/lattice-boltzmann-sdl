@@ -176,11 +176,15 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\lattice2d.cpp"
+				RelativePath=".\fast_lattice2d.cpp"
 				>
 			</File>
 			<File
 				RelativePath=".\main.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\slow_lattice2d.cpp"
 				>
 			</File>
 		</Filter>
@@ -190,7 +194,15 @@
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
 			<File
+				RelativePath=".\fast_lattice2d.h"
+				>
+			</File>
+			<File
 				RelativePath=".\lattice2d.h"
+				>
+			</File>
+			<File
+				RelativePath=".\slow_lattice2d.h"
 				>
 			</File>
 		</Filter>
