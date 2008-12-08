@@ -22,14 +22,14 @@ void FastLattice2D::updAggrData() const
 		return;
 
 	int n = nx_ * ny_;
-	float* buffer = f_ + n * Q;
+	real_t* buffer = f_ + n * Q;
 
 	for (int j = 0, k = 0; j < n; j++, k += 3)
 			buffer[k] = f_[j];
 
 	for (int i = 1; i < Q; i ++)
 	{
-		float* base = f_ + i * n;
+		real_t* base = f_ + i * n;
 		int j, k;
 		if (offset_[i] < 0)
 		{
@@ -68,11 +68,11 @@ void FastLattice2D::updAggrData() const
 	freshAggrData_ = true;
 }
 
-FastLattice2D::FastLattice2D(int nx, int ny, float (*loader)(int, int, int)) :
+FastLattice2D::FastLattice2D(int nx, int ny, real_t (*loader)(int, int, int)) :
 nx_(nx),
 ny_(ny)
 {
-	f_ = new float[nx * ny * (Q + 1 + DIM)];
+	f_ = new real_t[nx * ny * (Q + 1 + DIM)];
 
 	for (int i = 0; i < Q; i++)
 		for (int y = 0; y < ny_; y++)
@@ -90,7 +90,7 @@ FastLattice2D::~FastLattice2D()
 	delete[] f_;
 }
 
-const float* FastLattice2D::getData() const
+const real_t* FastLattice2D::getData() const
 {
 	updAggrData();
 	return f_ + nx_ * ny_ * Q;
