@@ -1,7 +1,9 @@
-#include <cstdlib>
 #include <iostream>
 #include <SDL.h>
-#include "lattice2d.h"
+#include "fast_lattice2d.h"
+#include "slow_lattice2d.h"
+
+//#define USE_FAST_LATTICE
 
 namespace
 {
@@ -9,17 +11,6 @@ namespace
 	const int H = 512;
 }
 
-#if 0
-float myLoader(int x, int y, int i)
-{
-	if (i > 1)
-		return 0.0;
-	if (i == x % 2)
-		return 1.0;
-	else
-		return 0.0;
-}
-#elif 1
 float myLoader(int x, int y, int i)
 {
 	if (i != ((x/16) + (y/16) * 5) % 9)
@@ -29,15 +20,14 @@ float myLoader(int x, int y, int i)
 	else
 		return 0.0;
 }
-#endif
 
 void drawLattice(const Lattice2D& l, SDL_Surface* pLockedSurf)
 {
-	const float* summedFsBuffer = l.getSummedFs();
+	const float* data = l.getData();
 	for (int y = 0; y < H; y++)
 		for (int x = 0; x < W; x++)
 		{
-			Uint8 grayLevel = (Uint8)(summedFsBuffer[x + W * y] * 255.0);
+			Uint8 grayLevel = (Uint8)(data[3 * (x + W * y)] * 255.0);
 			Uint32 valueToStore = (grayLevel << 16) | (grayLevel << 8) |
 				grayLevel;
 			((Uint32*)pLockedSurf->pixels)[x + y * W] = valueToStore;
@@ -46,7 +36,11 @@ void drawLattice(const Lattice2D& l, SDL_Surface* pLockedSurf)
 
 int main(int argc, char* argv[])
 {
-	Lattice2D l(512, 512, myLoader);
+#ifdef USE_FAST_LATTICE
+	FastLattice2D l(W, H, myLoader);
+#else
+	SlowLattice2D l(W, H, myLoader);
+#endif
 
 	SDL_Init(SDL_INIT_EVERYTHING);
 
