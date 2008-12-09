@@ -30,10 +30,20 @@ namespace
 		1.0f / 36.0f, // SE
 	};
 
-	const real_t OMEGA = 0.1f;
+	const real_t OMEGA = 0.5f;
+
+	real_t getFEq(real_t rho, real_t ux, real_t uy, real_t uSqr, int i)
+	{
+		real_t dotProd = ux * propD[i][0] + uy * propD[i][1];
+		real_t eqF = scD[i] * rho *
+			(1.0f + 3.0f * dotProd + 4.5f * dotProd * dotProd - 1.5f * uSqr);
+		return eqF;
+	}
 }
 
-SlowLattice2D::SlowLattice2D(int nx, int ny, real_t (*loader)(int, int, int)) :
+SlowLattice2D::	SlowLattice2D(int nx, int ny,
+							  void (*loader)(int x, int y, real_t& rho, 
+							  real_t& ux, real_t& uy)) :
 nx_(nx), ny_(ny)
 {
 	f_ = new real_t[nx * ny * Q];
@@ -42,8 +52,13 @@ nx_(nx), ny_(ny)
 
 	for (int x = 0; x < nx; x++)
 		for (int y = 0; y < ny; y++)
+		{
+			real_t rho, ux, uy, uSqr;
+			loader(x, y, rho, ux, uy);
+			uSqr = ux * ux + uy * uy;
 			for (int i = 0; i < Q; i++)
-				f_[i + Q * x + nx * Q * y] = loader(x, y, i);
+				f_[i + Q * x + nx * Q * y] = getFEq(rho, ux, uy, uSqr, i);
+		}
 
 	updAccumBuffer();
 }
@@ -69,10 +84,7 @@ void SlowLattice2D::makeCollisions()
 		
 			for (int i = 0; i < Q; i++)
 			{
-				real_t dotProd = ux * propD[i][0] + uy * propD[i][1];
-				real_t eqF = scD[i] * rho *
-					(1.0f + 3.0f * dotProd + 4.5f * dotProd * dotProd -
-					1.5f * uSqr);
+				real_t eqF = getFEq(rho, ux, uy, uSqr, i);
 				f_[i + Q * x + Q * nx_ * y] = 
 					f_[i + Q * x + Q * nx_ * y] * (1.0f - OMEGA) + OMEGA * eqF;
 			}

@@ -19,7 +19,8 @@ class SlowLattice2D : public Lattice2D
 	void updAccumBuffer();
 
 public:
-	SlowLattice2D(int nx, int ny, real_t (*loader)(int x, int y, int i));
+	SlowLattice2D(int nx, int ny, 
+		void (*loader)(int x, int y, real_t& rho, real_t& ux, real_t& uy));
 	virtual ~SlowLattice2D();
 
 	virtual const real_t* getData() const;

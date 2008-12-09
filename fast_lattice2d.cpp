@@ -68,17 +68,20 @@ void FastLattice2D::updAggrData() const
 	freshAggrData_ = true;
 }
 
-FastLattice2D::FastLattice2D(int nx, int ny, real_t (*loader)(int, int, int)) :
+FastLattice2D::FastLattice2D(int nx, int ny,
+							 void (*loader)(int x, int y, real_t& rho,
+							 real_t& ux, real_t& uy)) :
 nx_(nx),
 ny_(ny)
 {
 	f_ = new real_t[nx * ny * (Q + 1 + DIM)];
-
+#error
+#if 0 // FIXME: Load f_i from rho, ux & uy.
 	for (int i = 0; i < Q; i++)
 		for (int y = 0; y < ny_; y++)
 			for (int x = 0; x < nx_; x++)
 				f_[x + nx_ * (y + ny_ * i)] = loader(x, y, i);
-
+#endif
 	for (int i = 0; i < Q; i++)
 		offset_[i] = 0;
 

@@ -19,7 +19,8 @@ class FastLattice2D : public Lattice2D
 	void makePropagation();
 
 public:
-	FastLattice2D(int nx, int ny, real_t (*loader)(int x, int y, int i));
+	FastLattice2D(int nx, int ny, 
+		void (*loader)(int x, int y, real_t& rho, real_t& ux, real_t& uy));
 	virtual ~FastLattice2D();
 
 	const real_t* getData() const;
