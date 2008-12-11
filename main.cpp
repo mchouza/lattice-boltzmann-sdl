@@ -1,5 +1,6 @@
 #include <iostream>
 #include <SDL.h>
+#include <SDL_opengl.h>
 #include "fast_lattice2d.h"
 #include "slow_lattice2d.h"
 
@@ -9,6 +10,12 @@ namespace
 {
 	const int W = 512;
 	const int H = 512;
+
+	const int NX = 50;
+	const int NY = 50;
+	const int NPOINTS = NX * NY;
+
+	const real_t SPEED = 0.7;
 
 	template <typename T>
 	inline T sqr(T x)
@@ -23,31 +30,39 @@ void myLoader(int x, int y, real_t& rho, real_t& ux, real_t& uy)
 	uy = (real_t)0.0;
 
 	real_t scSqDist = (real_t)(sqr(x - W / 2) + sqr(y - H / 2)) / sqr(W / 8);
-	ux = (real_t)(0.7 / (scSqDist + 1.0));
+	ux = (real_t)(SPEED / (scSqDist + 1.0));
 }
 
-// FIXME: Returns mass only as a means of debugging
-real_t drawLattice(const Lattice2D& l, SDL_Surface* pLockedSurf)
+void drawLattice(const Lattice2D& l, float pointsVec[NPOINTS][2])
 {
-	const real_t* data = l.getData();
-	real_t mass = 0.0;
-	for (int y = 0; y < H; y++)
-		for (int x = 0; x < W; x++)
+	// move points with fluid velocity
+	for (int i = 0; i < NPOINTS; i++)
+	{
+		int x = (int)pointsVec[i][0] % W;
+		int y = (int)pointsVec[i][1] % H;
+		if (x < 0)
+			x += W;
+		if (y < 0)
+			y += H;
+		
+		pointsVec[i][0] += l.getData()[3 * (x + y * W) + 1];
+		pointsVec[i][1] += l.getData()[3 * (x + y * W) + 2];
+	}
+	
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+	glBegin(GL_POINTS);
+		for (int i = 0; i < NPOINTS; i++)
 		{
-			real_t rho = data[3 * (x + W * y)];
-			real_t ux = data[3 * (x + W * y) + 1];
-			real_t uy = data[3 * (x + W * y) + 2];
-			if (ux < (real_t)0.0)
-				ux = 0.0;
-			if (uy < (real_t)0.0)
-				uy = 0.0;
-			mass += rho;
-			Uint8 ux8b = (Uint8)(ux * 255.0);
-			Uint8 uy8b = (Uint8)(uy * 255.0);
-			Uint32 valueToStore = (ux8b << 16) | (uy8b << 8);
-			((Uint32*)pLockedSurf->pixels)[x + y * W] = valueToStore;
-		};
-	return mass;
+			int x = (int)pointsVec[i][0] % W;
+			int y = (int)pointsVec[i][1] % H;
+			if (x < 0)
+				x += W;
+			if (y < 0)
+				y += H;
+			glVertex2i(x, y);
+		}
+	glEnd();
 }
 
 int main(int argc, char* argv[])
@@ -60,7 +75,29 @@ int main(int argc, char* argv[])
 
 	SDL_Init(SDL_INIT_EVERYTHING);
 
-	SDL_Surface* pScreen = SDL_SetVideoMode(W, H, 32, SDL_DOUBLEBUF);
+	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+
+	SDL_Surface* pScreen =
+		SDL_SetVideoMode(W, H, 32, SDL_OPENGL);
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	glMatrixMode(GL_PROJECTION);
+	gluOrtho2D(0, W, H, 0);
+
+	float pointsVec[NPOINTS][2];
+	for (int i = 0; i < NX; i++)
+	{
+		for (int j = 0; j < NY; j++)
+		{
+			pointsVec[i + NX * j][0] = ((real_t)i / NX) * W;
+			pointsVec[i + NX * j][1] = ((real_t)j / NY) * H;
+		}
+	}
 
 	SDL_Event ev;
 	int i = 0;
@@ -69,16 +106,16 @@ int main(int argc, char* argv[])
 		Uint32 start = SDL_GetTicks();
 		if (SDL_PollEvent(&ev) && ev.type == SDL_QUIT)
 			break;
-		SDL_LockSurface(pScreen);
-		double mass = drawLattice(l, pScreen);
-		SDL_UnlockSurface(pScreen);
-		SDL_Flip(pScreen);
+
+		drawLattice(l, pointsVec);
+
+		SDL_GL_SwapBuffers();
+
 		l.step();
 		Uint32 end = SDL_GetTicks();
 		if (i++ % 10 == 0)
 		{
 			std::cout << "FPS: " << 1000.0 / (double)(end - start) << "\n";
-			std::cout << "Mass: " << mass << "\n";
 		}
 	}
 
