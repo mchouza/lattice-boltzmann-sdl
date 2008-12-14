@@ -12,14 +12,14 @@ class SlowLattice2D : public Lattice2D
 	real_t* fTmp_;
 	real_t* accumBuffer_;
 
-	int nx_, ny_;
+	int n_;
 
 	void makeCollisions();
 	void makePropagation();
 	void updAccumBuffer();
 
 public:
-	SlowLattice2D(int nx, int ny, 
+	SlowLattice2D(int n, 
 		void (*loader)(int x, int y, real_t& rho, real_t& ux, real_t& uy));
 	virtual ~SlowLattice2D();
 
