@@ -32,12 +32,17 @@ namespace
 
 	const real_t OMEGA = 0.5f;
 
-	real_t getFEq(real_t rho, real_t ux, real_t uy, real_t uSqr, int i)
+	inline real_t getFEq(real_t rho, real_t ux, real_t uy, real_t uSqr, int i)
 	{
 		real_t dotProd = ux * propD[i][0] + uy * propD[i][1];
 		real_t eqF = scD[i] * rho *
 			(1.0f + 3.0f * dotProd + 4.5f * dotProd * dotProd - 1.5f * uSqr);
 		return eqF;
+	}
+
+	inline real_t sqr(real_t x)
+	{
+		return x * x;
 	}
 }
 
@@ -71,27 +76,31 @@ FastLattice2D::~FastLattice2D()
 
 void FastLattice2D::makeCollisions()
 {
-#if 0 // FIXME: UPDATE
 	const real_t* accumBuffer = getData();
+	const int srcBlockSize = n_ * n_;
 	
-	for (int x = 0; x < n_; x++)
-		for (int y = 0; y < n_; y++)
+	for (int i = 0; i < Q; i++)
+	{
+		real_t* dataBlock = f_ + i * srcBlockSize;
+		int j, k;
+		real_t uSqr;
+
+		for (j = offsets_[i], k = 0; j < srcBlockSize; j++, k++)
 		{
-			real_t rho = accumBuffer[3 * (x + n_ * y)];
-			if (rho == 0.0f)
-				continue;
-			real_t ux = accumBuffer[3 * (x + n_ * y) + 1] / rho;
-			real_t uy = accumBuffer[3 * (x + n_ * y) + 2] / rho;
-			real_t uSqr = ux * ux + uy * uy;
-		
-			for (int i = 0; i < Q; i++)
-			{
-				real_t eqF = getFEq(rho, ux, uy, uSqr, i);
-				f_[i + Q * x + Q * n_ * y] = 
-					f_[i + Q * x + Q * n_ * y] * (1.0f - OMEGA) + OMEGA * eqF;
-			}
-		};
-#endif
+			uSqr = sqr(accumBuffer[3 * j + 1]) + sqr(accumBuffer[3 * j + 2]);
+			dataBlock[k] *= (1 - OMEGA);
+			dataBlock[k] += getFEq(accumBuffer[3 * j], accumBuffer[3 * j + 1],
+				accumBuffer[3 * j + 2], uSqr, i) * OMEGA;
+		}
+
+		for (j = 0; k < srcBlockSize; j++, k++)
+		{
+			uSqr = sqr(accumBuffer[3 * j + 1]) + sqr(accumBuffer[3 * j + 2]);
+			dataBlock[k] *= (1 - OMEGA);
+			dataBlock[k] += getFEq(accumBuffer[3 * j], accumBuffer[3 * j + 1],
+				accumBuffer[3 * j + 2], uSqr, i) * OMEGA;
+		}
+	}
 }
 
 void FastLattice2D::makePropagation()
@@ -111,7 +120,7 @@ void FastLattice2D::makePropagation()
 
 void FastLattice2D::step()
 {
-	//makeCollisions();
+	makeCollisions();
 	makePropagation();
 }
 
@@ -125,21 +134,7 @@ void FastLattice2D::updAccumBuffer() const
 		accumBuffer_[3 * j + 1] = (real_t)0.0;
 		accumBuffer_[3 * j + 2] = (real_t)0.0;
 	}
-#if 0
-	for (int i = 1; i < Q; i++)
-	{
-		real_t propDX = (real_t)propD[i][0];
-		real_t propDY = (real_t)propD[i][1];
-		real_t* srcData = f_ + i * srcBlockSize;
 
-		for (int j = 0; j < srcBlockSize; j++)
-		{
-			accumBuffer_[3 * j] += srcData[j];
-			accumBuffer_[3 * j + 1] += propDX * srcData[j];
-			accumBuffer_[3 * j + 2] += propDY * srcData[j];
-		}
-	}
-#elif 1
 	for (int i = 1; i < Q; i++)
 	{
 		real_t propDX = (real_t)propD[i][0];
@@ -162,7 +157,12 @@ void FastLattice2D::updAccumBuffer() const
 			accumBuffer_[3 * j + 2] += propDY * srcData[k];
 		}
 	}
-#endif
+
+	for (int j = 0; j < srcBlockSize; j++)
+	{
+		accumBuffer_[3 * j + 1] /= accumBuffer_[3 * j];
+		accumBuffer_[3 * j + 2] /= accumBuffer_[3 * j];
+	}
 
 	accumBufferUpdated_ = true;
 }
