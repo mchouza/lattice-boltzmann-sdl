@@ -1,6 +1,11 @@
 RELEASE HISTORY
 ===============
 
+Version 0.02
+------------
+- New release handling collisions.
+- Uses particles suspended in the fluid to show movement.
+
 Version 0.01
 ------------
 - Initial "release".
