@@ -8,24 +8,26 @@ class FastLattice2D : public Lattice2D
 	static const int Q = 9;
 	static const int DIM = 2;
 
-	real_t* f_;
-	int nx_, ny_;
-	int offset_[Q];
-	mutable bool freshAggrData_;
-	real_t* aggrData_;
+	int offsets_[Q];
 
-	void updAggrData() const;
+	real_t* f_;
+	real_t* accumBuffer_;
+
+	mutable bool accumBufferUpdated_;
+
+	int n_;
+
 	void makeCollisions();
 	void makePropagation();
+	void updAccumBuffer() const;
 
 public:
-	FastLattice2D(int nx, int ny, 
+	FastLattice2D(int n, 
 		void (*loader)(int x, int y, real_t& rho, real_t& ux, real_t& uy));
 	virtual ~FastLattice2D();
 
-	const real_t* getData() const;
-
-	void step();
+	virtual const real_t* getData() const;
+	virtual void step();
 };
 
 #endif
