@@ -10,8 +10,8 @@ namespace
 {
 	const int N = 512;
 
-	const int NPX = 50;
-	const int NPY = 50;
+	const int NPX = 200;
+	const int NPY = 15;
 	const int NPOINTS = NPX * NPY;
 
 	const real_t SPEED = (real_t)0.7;
