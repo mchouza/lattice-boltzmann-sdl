@@ -187,6 +187,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\one_pass_lattice2d.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\slow_lattice2d.cpp"
 				>
 			</File>
@@ -202,6 +206,10 @@
 			</File>
 			<File
 				RelativePath=".\lattice2d.h"
+				>
+			</File>
+			<File
+				RelativePath=".\one_pass_lattice2d.h"
 				>
 			</File>
 			<File
