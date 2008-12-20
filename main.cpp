@@ -9,8 +9,9 @@
 #define USE_SLOW_LATTICE 0
 #define USE_ONE_PASS_LATTICE 1
 
-#define FLUID_BALL_LOADER 1
+#define FLUID_BALL_LOADER 0
 #define UNIFORM_YVEL_LOADER 0
+#define TWO_FLUID_BALLS_LOADER 1
 
 namespace
 {
@@ -20,7 +21,7 @@ namespace
 	const int NPY = 15;
 	const int NPOINTS = NPX * NPY;
 
-	const real_t SPEED = (real_t)0.7;
+	const real_t SPEED = (real_t)0.6;
 
 	template <typename T>
 	inline T sqr(T x)
@@ -46,6 +47,22 @@ void myLoader(int x, int y, real_t& rho, real_t& ux, real_t& uy)
 	rho = (real_t)0.5;
 	ux = (real_t)0.5;
 	uy = (real_t)0.5;
+}
+#elif TWO_FLUID_BALLS_LOADER
+void myLoader(int x, int y, real_t& rho, real_t& ux, real_t& uy)
+{
+	rho = (real_t)0.5;
+	uy = (real_t)0.0;
+
+	if (sqr(x - N / 5) + sqr(y - N / 2) < sqr(N / 8))
+		ux = (real_t)SPEED;
+	else if (sqr(x - 4 * N / 5) + sqr(y - N / 2) < sqr(N / 8))
+	{
+		ux = (real_t)-SPEED;
+		uy = (real_t)(SPEED / 6.0);
+	}
+	else
+		ux = (real_t)0.0;
 }
 #else
 #error One loader must be selected.
