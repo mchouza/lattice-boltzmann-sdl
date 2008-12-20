@@ -11,7 +11,6 @@ class OnePassLattice2D : public Lattice2D
 	int offsets_[Q];
 
 	real_t* f_;
-	real_t* fAlt_;
 	real_t* accumBuffer_;
 
 	int n_;
