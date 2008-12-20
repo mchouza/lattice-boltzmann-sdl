@@ -1,9 +1,12 @@
+#include <cmath>
 #include <iostream>
 #include <SDL.h>
 #include <SDL_opengl.h>
 #include "fast_lattice2d.h"
 #include "one_pass_lattice2d.h"
 #include "slow_lattice2d.h"
+
+// TODO: Replace the multiple "ifdefs" by a more OO approach
 
 #define USE_FAST_LATTICE 0
 #define USE_SLOW_LATTICE 0
@@ -12,6 +15,9 @@
 #define FLUID_BALL_LOADER 0
 #define UNIFORM_YVEL_LOADER 0
 #define TWO_FLUID_BALLS_LOADER 1
+
+#define DRAW_WITH_POINT_CLOUD 1
+#define DRAW_WITH_ADVECTED_STRIPS 0
 
 namespace
 {
@@ -68,7 +74,43 @@ void myLoader(int x, int y, real_t& rho, real_t& ux, real_t& uy)
 #error One loader must be selected.
 #endif
 
-void drawLattice(const Lattice2D& l, float pointsVec[NPOINTS][2])
+#if DRAW_WITH_POINT_CLOUD
+namespace
+{
+	float pointsVec[NPOINTS][2];
+	SDL_Surface* pScreen;
+}
+
+void initDrawLattice()
+{
+	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+
+	pScreen = SDL_SetVideoMode(N, N, 32, SDL_OPENGL);
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	glMatrixMode(GL_PROJECTION);
+	gluOrtho2D(0, N, N, 0);
+
+	for (int i = 0; i < NPX; i++)
+	{
+		for (int j = 0; j < NPY; j++)
+		{
+			pointsVec[i + NPX * j][0] = ((real_t)i / NPX) * N;
+			pointsVec[i + NPX * j][1] = ((real_t)j / NPY) * N;
+		}
+	}
+}
+
+void finishDrawLattice()
+{
+}
+
+void drawLattice(const Lattice2D& l)
 {
 	// move points with fluid velocity
 	for (int i = 0; i < NPOINTS; i++)
@@ -98,7 +140,71 @@ void drawLattice(const Lattice2D& l, float pointsVec[NPOINTS][2])
 			glVertex2i(x, y);
 		}
 	glEnd();
+
+	SDL_GL_SwapBuffers();
 }
+#elif DRAW_WITH_ADVECTED_STRIPS
+namespace
+{
+	SDL_Surface* pScreen;
+	float* smokeDensity;
+	float* altSmokeDensity;
+}
+
+void initDrawLattice()
+{
+	pScreen = SDL_SetVideoMode(N, N, 32, SDL_DOUBLEBUF);
+	smokeDensity = new float[N * N];
+	altSmokeDensity = new float[N * N];
+
+	for (int y = 0; y < N; y++) 
+		for (int x = 0; x < N; x++)
+			smokeDensity[x + y * N] = (float)((sin(y / 1.5) + 1.0) / 2.0);
+}
+
+void finishDrawLattice()
+{
+	delete[] smokeDensity;
+	delete[] altSmokeDensity;
+}
+
+void drawLattice(const Lattice2D& l)
+{
+	// advection step
+	const real_t* lb = l.getData();
+	for (int y = 0; y < N; y++)
+		for (int x = 0; x < N; x++)
+		{
+			float srcX = x - lb[3 * (x + y * N) + 1];
+			float srcY = y - lb[3 * (x + y * N) + 2];
+			int srcXFloor = (int)floor(srcX);
+			int srcXCeil = (int)ceil(srcX);
+			int srcYFloor = (int)floor(srcY);
+			int srcYCeil = (int)ceil(srcY);
+			altSmokeDensity[x + y * N] =
+				lb[3 * (srcXFloor + srcYFloor * N)] +
+				lb[3 * (srcXFloor + srcYCeil * N)] +
+				lb[3 * (srcXCeil + srcYFloor * N)] +
+				lb[3 * (srcXCeil + srcYCeil * N)];
+			altSmokeDensity[x + y * N] /= 4.0;
+			std::swap(smokeDensity, altSmokeDensity);
+		};
+
+	// density visualization
+	for (int y = 0; y < N; y++) 
+		for (int x = 0; x < N; x++)
+		{
+			Uint8 intSmokeDensity = (Uint8)(smokeDensity[x + y * N] * 255.0);
+			((Uint32*)pScreen->pixels)[x + y * pScreen->pitch / 4] =
+				(intSmokeDensity << 16) | (intSmokeDensity << 8) |
+				(intSmokeDensity);
+		};
+
+	SDL_Flip(pScreen);
+}
+#else
+#error A valid draw method must be selected.
+#endif
 
 int main(int argc, char* argv[])
 {
@@ -114,29 +220,7 @@ int main(int argc, char* argv[])
 
 	SDL_Init(SDL_INIT_EVERYTHING);
 
-	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
-	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
-	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
-	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
-	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-
-	SDL_Surface* pScreen =
-		SDL_SetVideoMode(N, N, 32, SDL_OPENGL);
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-	glMatrixMode(GL_PROJECTION);
-	gluOrtho2D(0, N, N, 0);
-
-	float pointsVec[NPOINTS][2];
-	for (int i = 0; i < NPX; i++)
-	{
-		for (int j = 0; j < NPY; j++)
-		{
-			pointsVec[i + NPX * j][0] = ((real_t)i / NPX) * N;
-			pointsVec[i + NPX * j][1] = ((real_t)j / NPY) * N;
-		}
-	}
+	initDrawLattice();
 
 	SDL_Event ev;
 	int i = 0;
@@ -146,9 +230,7 @@ int main(int argc, char* argv[])
 		if (SDL_PollEvent(&ev) && ev.type == SDL_QUIT)
 			break;
 
-		drawLattice(l, pointsVec);
-
-		SDL_GL_SwapBuffers();
+		drawLattice(l);
 
 		l.step();
 
@@ -158,6 +240,8 @@ int main(int argc, char* argv[])
 			std::cout << "FPS: " << 1000.0 / (double)(end - start) << "\n";
 		}
 	}
+
+	finishDrawLattice();
 
 	SDL_Quit();
 
