@@ -2,9 +2,12 @@
 #include <SDL.h>
 #include <SDL_opengl.h>
 #include "fast_lattice2d.h"
+#include "one_pass_lattice2d.h"
 #include "slow_lattice2d.h"
 
-#define USE_FAST_LATTICE
+#define USE_FAST_LATTICE 0
+#define USE_SLOW_LATTICE 0
+#define USE_ONE_PASS_LATTICE 1
 
 namespace
 {
@@ -79,10 +82,14 @@ void drawLattice(const Lattice2D& l, float pointsVec[NPOINTS][2])
 
 int main(int argc, char* argv[])
 {
-#ifdef USE_FAST_LATTICE
+#if USE_FAST_LATTICE
 	FastLattice2D l(N, myLoader);
-#else
+#elif USE_SLOW_LATTICE
 	SlowLattice2D l(N, myLoader);
+#elif USE_ONE_PASS_LATTICE
+	OnePassLattice2D l(N, myLoader);
+#else
+#error One lattice type must be selected.
 #endif
 
 	SDL_Init(SDL_INIT_EVERYTHING);

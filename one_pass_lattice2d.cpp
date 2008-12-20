@@ -30,17 +30,18 @@ namespace
 
 	const real_t OMEGA = 0.5f;
 
-	inline real_t getFEq(real_t rho, real_t ux, real_t uy, real_t uSqr, int i)
+	inline real_t sqr(real_t x)
 	{
+		return x * x;
+	}
+
+	inline real_t getFEq(real_t rho, real_t ux, real_t uy, int i)
+	{
+		real_t uSqr = sqr(ux) + sqr(uy);
 		real_t dotProd = ux * propD[i][0] + uy * propD[i][1];
 		real_t eqF = scD[i] * rho *
 			(1.0f + 3.0f * dotProd + 4.5f * dotProd * dotProd - 1.5f * uSqr);
 		return eqF;
-	}
-
-	inline real_t sqr(real_t x)
-	{
-		return x * x;
 	}
 }
 
@@ -50,7 +51,6 @@ OnePassLattice2D::OnePassLattice2D(int n,
 n_(n)
 {
 	f_ = new real_t[n * n * Q];
-	fAlt_ = new real_t[n * n * Q];
 	accumBuffer_ = new real_t[(DIM + 1) * n * n];
 
 	for (int i = 0; i < Q; i++)
@@ -60,7 +60,7 @@ n_(n)
 				real_t rho, ux, uy, uSqr;
 				loader(x, y, rho, ux, uy);
 				uSqr = ux * ux + uy * uy;
-				f_[x + y * n + i * n * n] = getFEq(rho, ux, uy, uSqr, i);
+				f_[x + y * n + i * n * n] = getFEq(rho, ux, uy, i);
 			};
 
 	for (int i = 0; i < Q; i++)
@@ -70,13 +70,49 @@ n_(n)
 OnePassLattice2D::~OnePassLattice2D()
 {
 	delete[] f_;
-	delete[] fAlt_;
 	delete[] accumBuffer_;
 }
 
 void OnePassLattice2D::makeCollisions()
 {
-	// FIXME: Fill
+	real_t* fCursor[Q];
+	real_t* fCursorBounds[Q];
+	int blockSize = n_ * n_;
+	for (int i = 0; i < Q; i++)
+	{
+		fCursor[i] = f_ + blockSize * i + offsets_[i];
+		fCursorBounds[i] = f_ + blockSize * (i + 1);
+	}
+	for (int i = 0; i < blockSize; i++)
+	{
+		real_t rho = *fCursor[0];
+		rho += *fCursor[1];
+
+		real_t ux = propD[1][0] * (*fCursor[1]);
+		real_t uy = propD[1][1] * (*fCursor[1]);
+
+		for (int j = 2; j < Q; j++)
+		{
+			rho += *fCursor[j];
+			ux += propD[j][0] * (*fCursor[j]);
+			uy += propD[j][1] * (*fCursor[j]);
+		}
+
+		ux /= rho;
+		uy /= rho;
+
+		for (int j = 0; j < Q; j++)
+			*fCursor[j] = *fCursor[j] * (1 - OMEGA) + 
+				OMEGA * getFEq(rho, ux, uy, j);
+
+		accumBuffer_[3 * i] = rho;
+		accumBuffer_[3 * i + 1] = ux;
+		accumBuffer_[3 * i + 2] = uy;
+
+		for (int j = 0; j < Q; j++)
+			if (++fCursor[j] == fCursorBounds[j])
+				fCursor[j] -= blockSize;
+	}
 }
 
 void OnePassLattice2D::makePropagation()
