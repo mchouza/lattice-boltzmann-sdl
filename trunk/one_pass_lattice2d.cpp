@@ -121,7 +121,7 @@ void OnePassLattice2D::makePropagation()
 
 	for (int i = 0; i < Q; i++)
 	{
-		offsets_[i] += propD[i][0] + n_ * propD[i][1];
+		offsets_[i] -= propD[i][0] + n_ * propD[i][1];
 		offsets_[i] %= blockSize;
 		if (offsets_[i] < 0)
 			offsets_[i] += blockSize;

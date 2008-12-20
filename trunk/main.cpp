@@ -9,6 +9,9 @@
 #define USE_SLOW_LATTICE 0
 #define USE_ONE_PASS_LATTICE 1
 
+#define FLUID_BALL_LOADER 1
+#define UNIFORM_YVEL_LOADER 0
+
 namespace
 {
 	const int N = 512;
@@ -26,16 +29,7 @@ namespace
 	}
 }
 
-#if 0
-void myLoader(int x, int y, real_t& rho, real_t& ux, real_t& uy)
-{
-	rho = (real_t)0.5;
-	uy = (real_t)0.0;
-
-	real_t scSqDist = (real_t)(sqr(x - N / 2) + sqr(y - N / 2)) / sqr(N / 8);
-	ux = (real_t)(SPEED / (scSqDist + 1.0));
-}
-#elif 1
+#if FLUID_BALL_LOADER
 void myLoader(int x, int y, real_t& rho, real_t& ux, real_t& uy)
 {
 	rho = (real_t)0.5;
@@ -46,6 +40,15 @@ void myLoader(int x, int y, real_t& rho, real_t& ux, real_t& uy)
 	else
 		ux = (real_t)0.0;
 }
+#elif UNIFORM_YVEL_LOADER
+void myLoader(int x, int y, real_t& rho, real_t& ux, real_t& uy)
+{
+	rho = (real_t)0.5;
+	ux = (real_t)0.5;
+	uy = (real_t)0.5;
+}
+#else
+#error One loader must be selected.
 #endif
 
 void drawLattice(const Lattice2D& l, float pointsVec[NPOINTS][2])
