@@ -16,8 +16,9 @@
 #define UNIFORM_YVEL_LOADER 0
 #define TWO_FLUID_BALLS_LOADER 1
 
-#define DRAW_WITH_POINT_CLOUD 1
+#define DRAW_WITH_POINT_CLOUD 0
 #define DRAW_WITH_ADVECTED_STRIPS 0
+#define DRAW_WITH_LINES 1
 
 namespace
 {
@@ -33,6 +34,47 @@ namespace
 	inline T sqr(T x)
 	{
 		return x * x;
+	}
+
+	template <typename T>
+	inline T modularDist(T x1, T y1, T x2, T y2, T xMod, T yMod)
+	{
+		T dx = x2 - x1;
+		T dy = y2 - y1;
+		if (dx > xMod / (T)2)
+			dx -= xMod;
+		else if (dx < -xMod / (T)2)
+			dx += xMod;
+		if (dy > yMod / (T)2)
+			dy -= yMod;
+		else if (dy < -yMod / (T)2)
+			dy += yMod;
+		return sqrt(sqr(dx) + sqr(dy));
+	}
+
+	template <typename T>
+	inline void modularAvg(T& xa, T&ya, T x1, T y1, T x2, T y2, T xMod, T yMod)
+	{
+		T dx = x2 - x1;
+		T dy = y2 - y1;
+		if (dx > xMod / (T)2)
+			dx -= xMod;
+		else if (dx < -xMod / (T)2)
+			dx += xMod;
+		if (dy > yMod / (T)2)
+			dy -= yMod;
+		else if (dy < -yMod / (T)2)
+			dy += yMod;
+		xa = x1 + dx / (T)2;
+		ya = y1 + dy / (T)2;
+		if (xa > xMod)
+			xa -= xMod;
+		else if (xa < 0)
+			xa += xMod;
+		if (ya > yMod)
+			ya -= yMod;
+		else if (ya < 0)
+			ya += yMod;
 	}
 }
 
@@ -201,6 +243,114 @@ void drawLattice(const Lattice2D& l)
 		};
 
 	SDL_Flip(pScreen);
+}
+#elif DRAW_WITH_LINES
+#include <vector>
+namespace
+{
+	struct Point
+	{
+		float x, y;
+	};
+	std::vector<Point> linesInFluid[NPY];
+	SDL_Surface* pScreen;
+}
+
+void initDrawLattice()
+{
+	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+
+	pScreen = SDL_SetVideoMode(N, N, 32, SDL_OPENGL);
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	glMatrixMode(GL_PROJECTION);
+	gluOrtho2D(0, N, N, 0);
+
+	Point p;
+	for (int i = 0; i < NPY; i++)
+		for (int j = 0; j < NPX; j++)
+		{
+			p.x = j * ((float)N) / NPX;
+			p.y = i * ((float)N) / NPY;
+			linesInFluid[i].push_back(p);
+		}
+}
+
+void finishDrawLattice()
+{
+}
+
+void drawLattice(const Lattice2D& l)
+{
+	// move points with fluid velocity
+	for (int i = 0; i < NPY; i++)
+		for (int j = 0; j < linesInFluid[i].size(); j++)
+		{
+			int x = (int)linesInFluid[i][j].x % N;
+			int y = (int)linesInFluid[i][j].y % N;
+			if (x < 0)
+				x += N;
+			if (y < 0)
+				y += N;
+			
+			linesInFluid[i][j].x += l.getData()[3 * (x + y * N) + 1];
+			linesInFluid[i][j].y += l.getData()[3 * (x + y * N) + 2];
+		};
+
+	// inserts extra points if they are needed
+	for (int i = 0; i < NPY; i++)
+	{
+		float lastX = linesInFluid[i].back().x;
+		float lastY = linesInFluid[i].back().y;
+
+		for (int j = 0; j < linesInFluid[i].size(); j++)
+		{
+			float dist = modularDist(lastX, lastY, linesInFluid[i][j].x, 
+				linesInFluid[i][j].y, (float)N, (float)N);
+
+			if (dist > 2)
+			{
+				Point p;
+				modularAvg(p.x, p.y, lastX, lastY, linesInFluid[i][j].x, 
+					linesInFluid[i][j].y, (float)N, (float)N);
+				linesInFluid[i].insert(linesInFluid[i].begin() + j, p);
+				j++;
+			}
+			else if (dist < 1)
+			{
+				linesInFluid[i].erase(linesInFluid[i].begin() + j);
+				j--;
+				continue;
+			}
+
+			lastX = linesInFluid[i][j].x;
+			lastY = linesInFluid[i][j].y;
+		}
+
+	}
+
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+	glBegin(GL_POINTS);
+		for (int i = 0; i < NPY; i++)
+			for (int j = 0; j < linesInFluid[i].size(); j++)
+			{
+				int x = (int)linesInFluid[i][j].x % N;
+				int y = (int)linesInFluid[i][j].y % N;
+				if (x < 0)
+					x += N;
+				if (y < 0)
+					y += N;
+				glVertex2i(x, y);
+			};
+	glEnd();
+
+	SDL_GL_SwapBuffers();
 }
 #else
 #error A valid draw method must be selected.
