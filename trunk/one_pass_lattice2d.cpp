@@ -61,6 +61,9 @@ n_(n)
 				loader(x, y, rho, ux, uy);
 				uSqr = ux * ux + uy * uy;
 				f_[x + y * n + i * n * n] = getFEq(rho, ux, uy, i);
+				accumBuffer_[3 * (x + n * y)] = rho;
+				accumBuffer_[3 * (x + n * y) + 1] = ux;
+				accumBuffer_[3 * (x + n * y) + 2] = uy;
 			};
 
 	for (int i = 0; i < Q; i++)
