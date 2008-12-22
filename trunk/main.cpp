@@ -252,7 +252,7 @@ namespace
 	{
 		float x, y;
 	};
-	std::vector<Point> linesInFluid[NPY];
+	std::vector<Point> linesInFluid[NPY + NPY];
 	SDL_Surface* pScreen;
 }
 
@@ -278,6 +278,8 @@ void initDrawLattice()
 			p.x = j * ((float)N) / NPX;
 			p.y = i * ((float)N) / NPY;
 			linesInFluid[i].push_back(p);
+			std::swap(p.x, p.y);
+			linesInFluid[i + NPY].push_back(p);
 		}
 }
 
@@ -288,7 +290,7 @@ void finishDrawLattice()
 void drawLattice(const Lattice2D& l)
 {
 	// move points with fluid velocity
-	for (int i = 0; i < NPY; i++)
+	for (int i = 0; i < NPY + NPY; i++)
 		for (int j = 0; j < linesInFluid[i].size(); j++)
 		{
 			int x = (int)linesInFluid[i][j].x % N;
@@ -303,7 +305,7 @@ void drawLattice(const Lattice2D& l)
 		};
 
 	// inserts extra points if they are needed
-	for (int i = 0; i < NPY; i++)
+	for (int i = 0; i < NPY + NPY; i++)
 	{
 		float lastX = linesInFluid[i].back().x;
 		float lastY = linesInFluid[i].back().y;
@@ -337,7 +339,7 @@ void drawLattice(const Lattice2D& l)
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
 	glBegin(GL_POINTS);
-		for (int i = 0; i < NPY; i++)
+		for (int i = 0; i < NPY + NPY; i++)
 			for (int j = 0; j < linesInFluid[i].size(); j++)
 			{
 				int x = (int)linesInFluid[i][j].x % N;
